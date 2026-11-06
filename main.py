@@ -121,3 +121,60 @@ def delete_category(category_id: int):
 
 #нельзя удалить категорию, если в ней уже находятся товары
 # Иначе у товара останется ссылка на несуществующую категорию
+
+
+# PRODUCT CRUD
+product_list = {}
+product_id = 1  
+
+# PYDANTIC - MODELS
+class ProductCreate(BaseModel):
+    title : str = Field(min_length=2)
+    category_id : int
+
+class ProductUpdate(BaseModel):
+    title : str | None = Field(default=None, min_length= 2)
+    category_id : int | None = None
+
+#CREATE PRODUCT
+@app.post("/products/")
+def create_product(payload: ProductCreate):
+    global product_id
+    category = category_list.get(payload.category_id) #важная проверка по айди
+    if category is None:
+        raise HTTPException( status_code=404, detail="category not found" )
+    product_list[product_id] = { "title" : payload.title, "category_id" : payload.category_id }
+    created_product = { "id" : product_id, **product_list[product_id] }
+    product_id += 1
+    return created_product
+
+#read all products
+@app.get("/products/")
+def get_products():
+    return product_list
+
+#read one  product
+@app.get("/products/{product_id}")
+def get_product( product_id: int ) :
+    product = product_list.get(product_id)
+    if product is None:
+        raise HTTPException( status_code=404, detail = "product not found" )
+    return { "id" : product_id, **product }
+
+#UPDATE PRODUCT
+@app.patch("/products/{product_id}")
+def update_product( product_id : int, payload: ProductUpdate ):
+    product = product_list.get(product_id)
+    if product is None:
+        raise HTTPException( status_code= 404, detail = "product not found" )
+    changes = payload.model_dump( exclude_unset = True, exclude_none= True ) # получаем только те поля, которые пользователь действительно передал
+
+    if "category_id" in changes:
+        category = category_list.get(changes["category_id"])
+        if category is None:
+            raise HTTPException( status_code=404, detail="category not found" )
+
+    if not changes:
+        raise HTTPException( status_code=400, detail = "No data provided" )
+    product.update(changes)
+    return { "id" : product_id, **product }
