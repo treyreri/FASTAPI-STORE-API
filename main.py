@@ -106,3 +106,18 @@ def update_category( category_id: int, payload: CategoryUpdate ) :
     return { "id" : category_id, **category }
 
 
+#delete category
+@app.delete("/categories/{category_id}")
+def delete_category(category_id: int):
+    category = category_list.get(category_id)
+    if category is None:
+        raise HTTPException( status_code=404, detail = "category not found" )
+    for product in product_list.values():
+        if product["category_id"] == category_id:
+            raise HTTPException( status_code=400, detail = "category contains products" )
+
+    del category_list[category_id]
+    return { "message" : "category deleted successfully" }
+
+#нельзя удалить категорию, если в ней уже находятся товары
+# Иначе у товара останется ссылка на несуществующую категорию
