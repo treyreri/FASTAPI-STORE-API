@@ -178,3 +178,16 @@ def update_product( product_id : int, payload: ProductUpdate ):
         raise HTTPException( status_code=400, detail = "No data provided" )
     product.update(changes)
     return { "id" : product_id, **product }
+
+#delete product
+@app.delete("/products/{product_id}")
+def delete_product(product_id: int):
+    product = product_list.get(product_id)
+    if product is None:
+        raise HTTPException( status_code=404, detail = "product not found" )
+    for item in orderitem_list.values():
+        if item["product_id"] == product_id:
+            raise HTTPException( status_code=400, detail = "product is used in an order" )
+    del product_list[product_id]
+    return {"message" : "product deleted successfully"}
+# мы проверяем, не используется ли товар в существующем заказе
