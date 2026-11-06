@@ -73,6 +73,7 @@ class CategoryCreate(BaseModel):
 class CategoryUpdate(BaseModel):
     title : str = Field(min_length=2)
 
+#create
 @app.post("/categories/")
 def create_category(payload: CategoryCreate):
     global category_id
@@ -81,3 +82,27 @@ def create_category(payload: CategoryCreate):
     created_category = { "id" : category_id , "title" : payload.title }
     category_id += 1
     return created_category
+
+#read all categories
+@app.get("/categories/")
+def get_categories():
+    return category_list
+
+#read one category
+@app.get("/categories/{category_id}")
+def get_category(category_id: id):
+    category = category_list.get(category_id)
+    if category is None:
+        raise HTTPException( status_code=404, detail="category not found" )
+    return { "id" : category_id, **category }
+
+#update category
+@app.put("/categories/{category_id}")
+def update_category( category_id: int, payload: CategoryUpdate ) :
+    category = category_list.get(category_id)
+    if category is None:
+        raise HTTPException( status_code=404, detail="category not found" )
+    category["title"] = payload.title
+    return { "id" : category_id, **category }
+
+
