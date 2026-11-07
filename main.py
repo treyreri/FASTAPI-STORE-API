@@ -163,11 +163,17 @@ def get_products():
 
 #read one  product
 @app.get("/products/{product_id}")
-def get_product( product_id: int ) :
+def get_product(product_id: int):
     product = product_list.get(product_id)
     if product is None:
-        raise HTTPException( status_code=404, detail = "product not found" )
-    return { "id" : product_id, **product }
+        raise HTTPException( status_code=404,  detail="product not found" )
+    category = category_list.get(product["category_id"])
+    return {
+        "id": product_id,
+        "title": product["title"],
+        "price": product["price"],
+        "category_id": product["category_id"],
+        "category_title": category["title"] }
 
 #UPDATE PRODUCT
 @app.patch("/products/{product_id}")
@@ -330,3 +336,52 @@ def delete_user(user_id: int):
     if user_login == user_id:
         user_login = None
     return { "message": "user deleted successfully" }
+
+
+# GET categories/{category_id}/products товары определенной категории наприме категории с айди 5
+@app.get("/categories/{category_id}/products")
+def get_category_products(category_id: int):
+    category = category_list.get(category_id)
+    if category is None:
+        raise HTTPException( status_code=404, detail="category not found" )
+    result = []
+    for id, product in product_list.items():
+        if product["category_id"] == category_id:
+            result.append({ "id": id, **product })
+    return result
+#добавляем найденный товар в список
+
+
+
+
+
+#QUERY PARAMETRES
+# /products/search?title=phone
+
+@app.get("/products/search")
+def search_products(title: str = Query(min_length=1)):
+    result = []
+    for id, product in product_list.items():
+        if title.lower() in product["title"].lower():
+            result.append({ "id": id, **product })
+    return result
+
+
+
+# GET /products/filter?min_price=500&max_price=2000
+@app.get("/products/filter")
+def filter_products(
+    min_price: float | None = Query(default=None, ge=0),
+    max_price: float | None = Query(default=None, ge=0) ):
+    if min_price is not None and max_price is not None:
+        if min_price > max_price:
+            raise HTTPException( status_code=400, detail="min_price cannot be greater than max_price" )
+    result = []
+    for id, product in product_list.items():
+        price = product["price"]
+        if min_price is not None and price < min_price:
+            continue
+        if max_price is not None and price > max_price:
+            continue
+        result.append({ "id": id, **product })
+    return result
