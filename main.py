@@ -1,4 +1,7 @@
 from fastapi import FastAPI, HTTPException 
+from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel, Field
+
 app = FastAPI( title = "shop API" , description="online shop backend" )
 
 @app.get("/")
@@ -90,7 +93,7 @@ def get_categories():
 
 #read one category
 @app.get("/categories/{category_id}")
-def get_category(category_id: id):
+def get_category(category_id: int):
     category = category_list.get(category_id)
     if category is None:
         raise HTTPException( status_code=404, detail="category not found" )
@@ -129,24 +132,29 @@ product_id = 1
 
 # PYDANTIC - MODELS
 class ProductCreate(BaseModel):
-    title : str = Field(min_length=2)
-    category_id : int
+    title: str = Field(min_length=2)
+    category_id: int
+    price: float = Field(gt=0)
 
 class ProductUpdate(BaseModel):
-    title : str | None = Field(default=None, min_length= 2)
-    category_id : int | None = None
+    title: str | None = Field(default=None, min_length=2)
+    category_id: int | None = None
+    price: float | None = Field(default=None, gt=0)
 
 #CREATE PRODUCT
 @app.post("/products/")
 def create_product(payload: ProductCreate):
     global product_id
-    category = category_list.get(payload.category_id) #важная проверка по айди
+    category = category_list.get(payload.category_id)
     if category is None:
         raise HTTPException( status_code=404, detail="category not found" )
-    product_list[product_id] = { "title" : payload.title, "category_id" : payload.category_id }
-    created_product = { "id" : product_id, **product_list[product_id] }
+
+    product_list[product_id] = { "title": payload.title, "category_id": payload.category_id, "price": payload.price }
+
+    created_product = { "id": product_id, **product_list[product_id] }
     product_id += 1
     return created_product
+
 
 #read all products
 @app.get("/products/")
@@ -185,7 +193,7 @@ def delete_product(product_id: int):
     product = product_list.get(product_id)
     if product is None:
         raise HTTPException( status_code=404, detail = "product not found" )
-    for item in orderitem_list.values():
+    for item in order_items_list.values():
         if item["product_id"] == product_id:
             raise HTTPException( status_code=400, detail = "product is used in an order" )
     del product_list[product_id]
@@ -221,7 +229,7 @@ def get_orders():
 
     for id, order in order_list.items():
         if order["user_id"] == user_login:
-            result[id] == order
+            result[id] = order
     return result
 # ЗДЕСЬ МЫ ПОКАЗЫВАЕМ ТОЛЬКО ЗАКАЗЫ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
 
@@ -253,14 +261,17 @@ def delete_order(order_id: int):
     if order["user_id"] != user_login:
         raise HTTPException( status_code=403, detail = "you cannot delete rhis order" )
     items_to_delete = []
-    for id, item in orderitem_list.items():
-        if item["order_id"] == order.id:
+    for id, item in order_items_list.items():
+        if item["order_id"] == order_id:
             items_to_delete.append(id)
 
     for id in items_to_delete:
-        del orderitem_list[id]
+        del order_items_list[id]
 
     del order_list[order_id]
     return { "message" : "order deleted successfully" }
 #сначала находим все orderitems, которые принадлежат удаляемому заказу, потом удаляем их.
 #И только после этого удаляем сам заказ. Так мы не оставляем ордерайтемс которые ссылаются на уже удаленный заказ
+
+order_items_list = {}
+order_item_id = 1
