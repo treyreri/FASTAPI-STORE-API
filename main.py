@@ -240,3 +240,27 @@ def get_order(order_id: int):
     if order["user_id"] != user_login:
         raise HTTPException( status_code=403, detail="this order belongs to another user" )
     return { "id": order_id, **order }
+
+
+#delete order
+@app.delete("/orders/{order_id}")
+def delete_order(order_id: int):
+    if user_login is None:
+        raise HTTPException( status_code=401, detail = "please login first" )
+    order = order_list.get(order_id)
+    if order is None:
+        raise HTTPException( status_code=404, detail="Order not found" )
+    if order["user_id"] != user_login:
+        raise HTTPException( status_code=403, detail = "you cannot delete rhis order" )
+    items_to_delete = []
+    for id, item in orderitem_list.items():
+        if item["order_id"] == order.id:
+            items_to_delete.append(id)
+
+    for id in items_to_delete:
+        del orderitem_list[id]
+
+    del order_list[order_id]
+    return { "message" : "order deleted successfully" }
+#сначала находим все orderitems, которые принадлежат удаляемому заказу, потом удаляем их.
+#И только после этого удаляем сам заказ. Так мы не оставляем ордерайтемс которые ссылаются на уже удаленный заказ
