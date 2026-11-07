@@ -275,3 +275,58 @@ def delete_order(order_id: int):
 
 order_items_list = {}
 order_item_id = 1
+
+
+# GET /users/{user_id}
+@app.get("/users/{user_id}")
+def  get_user(user_id : int):
+    user = user_list.get(user_id)
+    if user is None:
+        raise HTTPException( status_code=404, detail = "user not found" )
+    return ({ "id" : user_id, "username" : user["username"] })
+
+
+
+
+
+#PATCH users/{user_id} изменить username или password
+
+#pydantic model
+class UserUpdate(BaseModel):
+    username: str | None = Field(default = None, min_length=2)
+    password: str | None = None
+
+#endpoint
+@app.patch("/users/{user_id}")
+def update_user(user_id: int, payload: UserUpdate):
+    user = user_list.get(user_id)
+    if user is None:
+        raise HTTPException( status_code=404, detail="user not found" )
+
+    changes = payload.model_dump( exclude_unset=True, exclude_none=True )
+    if not changes:
+        raise HTTPException( status_code=400, detail="no data provided" )
+    if "username" in changes:
+        for id, existing_user in user_list.items():
+            if id != user_id and existing_user["username"] == changes["username"]:
+                raise HTTPException( status_code=400, detail="username already exists" )
+    user.update(changes)
+    return { "id": user_id, "username": user["username"] }
+
+
+
+
+# DELETE users/{user_id} удалить пользователя если у него нет заказов
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int):
+    global user_login
+    user = user_list.get(user_id)
+    if user is None:
+        raise HTTPException( status_code=404, detail="user not found" )
+    for order in order_list.values():
+        if order["user_id"] == user_id:
+            raise HTTPException( status_code=400, detail="user has orders" )
+    del user_list[user_id]
+    if user_login == user_id:
+        user_login = None
+    return { "message": "user deleted successfully" }
