@@ -191,3 +191,52 @@ def delete_product(product_id: int):
     del product_list[product_id]
     return {"message" : "product deleted successfully"}
 # мы проверяем, не используется ли товар в существующем заказе
+
+
+
+
+# ORDER создание и управление заказами . Заказ принадлежит пользователю который сейчас авторизован
+order_list = {}
+order_id = 1
+
+#create order
+@app.post("/orders/")
+def create_order():
+    global order_id
+    if user_login is None:
+        raise HTTPException( status_code=401, detail="please login first" )
+    order_list[order_id] = {"user_id" : user_login}
+    created_order = { "id" : order_id, **order_list[order_id] }
+    order_id += 1
+    return created_order
+# user_login -> "user_id" : 1
+
+
+# read all orders
+@app.get("/orders/")
+def get_orders():
+    if user_login is None:
+        raise HTTPException( status_code=401, detail="please login first" )
+    result = {}
+
+    for id, order in order_list.items():
+        if order["user_id"] == user_login:
+            result[id] == order
+    return result
+# ЗДЕСЬ МЫ ПОКАЗЫВАЕМ ТОЛЬКО ЗАКАЗЫ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
+
+
+# read one order
+@app.get("/orders/{order_id}")
+def get_order(order_id: int):
+
+    if user_login is None:
+        raise HTTPException( status_code=401, detail=" please login first" )
+    order = order_list.get(order_id)
+
+    if order is None:
+        raise HTTPException( status_code=404, detail="order not found" )
+
+    if order["user_id"] != user_login:
+        raise HTTPException( status_code=403, detail="this order belongs to another user" )
+    return { "id": order_id, **order }
